@@ -7,7 +7,7 @@ dynet_config.set(mem='4096', random_seed=dy_seed)
 import dynet as dy
 import random
 from utils import *
-from evals import *
+from evals import *   
 import os
 import pickle
 from model import MyModel
@@ -89,12 +89,6 @@ def run(args, flag2embedding_path, test_ids):
         loss, Y_pred_asp= model(dataset=test_test, is_train=False)
         Y_gold_asp = [sent2tags(sent) for sent in test_test]
         
-        with open("/Users/FSHR/Research/OTE/log/%s-no-gate-unit-with-attention-result.txt" % ds_name, 'w') as fp:
-            for k in range(0,len(Y_gold_asp)):
-                fp.writelines('raw_words:%s \n' %(test_test[k]['words']))
-                fp.writelines('gold_asp:%s \n' %(Y_gold_asp[k]))
-                fp.writelines('Y_pred_asp: %s \n' %(Y_pred_asp[k]))
-                fp.writelines('\n')
         #evaluate
         p, r, f1, output_lines = evaluate_chunk(test_Y=Y_gold_asp, pred_Y=Y_pred_asp, dataset=test_test)
 
@@ -113,13 +107,11 @@ def run(args, flag2embedding_path, test_ids):
     result_logs.append(params_string + "\n")
     result_logs.extend(results_strings)
     result_logs.append('-------------------------------------------------------\n')
-    with open("/Users/FSHR/Research/OTE/log/%s.txt" % ds_name, 'a') as fp:
+    with open("/Users/%s.txt" % ds_name, 'w') as fp:
         fp.writelines(result_logs)
 
 
-# python main.py -ds_name 14semeval_rest  -rnn_type LSTM -attention_type bilinear -running_mode cross-validation
-
-
+# python main.py -ds_name 14semeval_rest
 if __name__ == '__main__':
     random_seed = 1234
     random.seed(random_seed)

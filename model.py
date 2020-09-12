@@ -1,4 +1,3 @@
- ##TODO
 import dynet_config
 dynet_config.set(mem='3072', random_seed=1314159)
 import dynet as dy
@@ -41,9 +40,9 @@ class MultiWeightLayer:
         self.dropout_rate = dropout_rate
         self.pc = pc.add_subcollection()
         
-        self._W1 = self.pc.add_parameters((self.n_out, self.n_out), init=dy.UniformInitializer(0.2))
-        self._W2 = self.pc.add_parameters((self.n_out, self.n_out), init=dy.UniformInitializer(0.2))
-        self._W3 = self.pc.add_parameters((self.n_out, self.n_out), init=dy.UniformInitializer(0.2))
+        self._W1 = self.pc.add_parameters((self.n_out, self.n_in), init=dy.UniformInitializer(0.2))
+        self._W2 = self.pc.add_parameters((self.n_out, self.n_in), init=dy.UniformInitializer(0.2))
+        self._W3 = self.pc.add_parameters((self.n_out, self.n_in), init=dy.UniformInitializer(0.2))
 
         self._bd = self.pc.add_parameters((self.n_out), init=dy.ConstInitializer(0.0))
 
@@ -130,7 +129,7 @@ class BiAttention:
             ht = H[t]
             scores = dy.tanh(dy.transpose(ht)*W1*pool+self.bd)
 #             print(scores.value())
-            Weights.append(scores)
+            Weights.append(scores.value() )
             ht_hat=dy.cmult(dy.softmax(scores),ht)
 #             print(ht_hat.value())
             aspect_attentions.append(ht_hat)
@@ -225,22 +224,20 @@ class DTreeBuilder:
             
         if node is None or node.is_leaf():
             Wx = W_dropout * xt
-            h = dy.tanh(Wx + self.bc)
-#             h = dy.tanh(dy.affine_transform([self.bc, self.WC, xt]))
+#             h = dy.tanh(Wx + self.bc)
+            h = dy.tanh(dy.affine_transform([self.bc, self.WC, xt]))
             return h
         
-        #需根据当前node的序号获取子节点数组        
+        #get child nodes        
         children=tree.children(node.identifier)
         children_sum=dy.zeros((self.n_out))
         for i in range(len(children)):
-#             children_sum=children_sum+WC_dropout*self.expr_for_tree(xt=xt,tree=tree,node=children[i],is_train=is_train)
             hc=self.expr_for_tree(xt=xt,tree=tree,node=children[i],is_train=is_train)
             rt = dy.logistic(self.WR * xt +self.UR*hc+self.br)
             children_sum=children_sum+dy.cmult(rt, hc)
-#             children_sum=children_sum+WC_dropout*self.expr_for_tree(xt=xt,tree=tree,node=children[i],is_train=is_train)
         
         Wx = W_dropout * xt
-        h = dy.tanh(Wx + self.bc+self.UP*children_sum)
+        h = dy.tanh(Wx + self.bp+self.UP*children_sum)
         return h     
 
 
@@ -294,7 +291,6 @@ class MyModel:
         self.dim_y_asp = params.n_asp_tags
         self.n_steps = params.n_steps
         self.asp_label2tag = label2tag
-        self.opi_label2tag = {0: 'O', 1: 'T'}
         self.dropout_asp = params.dropout_asp
         self.dropout = params.dropout
         self.ds_name = params.ds_name
@@ -313,7 +309,7 @@ class MyModel:
         self.BiAttention_B=BiAttention(pc=self.pc, n_in=self.dim_asp, n_out=self.dim_asp, dropout_rate=self.dropout_asp)
         self.BiAttention_T=BiAttention(pc=self.pc, n_in=self.dim_asp, n_out=self.dim_asp, dropout_rate=self.dropout_asp)
 
-        self.MultiWeightLayer=MultiWeightLayer(pc=self.pc, n_in=self.dim_w, n_out=self.dim_asp, dropout_rate=self.dropout_asp)
+        self.MultiWeightLayer=MultiWeightLayer(pc=self.pc, n_in=self.dim_asp, n_out=self.dim_asp, dropout_rate=self.dropout_asp)
 
         self.ASP_FC = Linear(pc=self.pc, n_in=self.dim_asp, n_out=self.dim_y_asp)
         
@@ -376,7 +372,7 @@ class MyModel:
             H_asp_f = f_asp.transduce(input_asp)
             H_asp_b = b_asp.transduce(input_asp[::-1])[::-1]
 
-            dp_asp=self.DEP_RecNN(inputs=input_asp,words=raw_words,dep=self.dep_record,is_train=is_train)
+            dp_asp,root_index=self.DEP_RecNN(inputs=input_asp,words=raw_words,dep=self.dep_record,is_train=is_train)
         
             asp_predictions = []
             seq_len = len(input_embeddings)
