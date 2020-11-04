@@ -1,4 +1,4 @@
-# FSHR
+# Fusion Representation Model for Aspect Term Extraction
 
 ## Requirements
 * Python 3.6
